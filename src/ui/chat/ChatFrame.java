@@ -81,6 +81,7 @@ public class ChatFrame extends BaseFrame {
         String key = "PRIVATE_" + otherUser;
         chats.computeIfAbsent(key, k -> addTab("PRIVATE", "PM: " + otherUser, otherUser));
         selectTab(key);
+        chatService.sendProtocolLine("PRIVATE|" + username + "|" + otherUser + "|/history");
     }
 
     private void joinRoom(String roomName) {

@@ -74,18 +74,18 @@ public class ChatService {
         }
     }
 
-    public boolean saveIncomingMessage(Message message) {
-        if (messageDAO == null) {
-            return false;
-        }
-        return messageDAO.saveMessage(message);
-    }
-
-    public List<Message> getRecentMessages(int limit) {
+    public List<Message> getRoomHistory(String room, int limit) {
         if (messageDAO == null) {
             return Collections.emptyList();
         }
-        return messageDAO.findRecentMessages(limit);
+        return messageDAO.findByRoom(room, limit);
+    }
+
+    public List<Message> getPrivateConversation(String user1, String user2, int limit) {
+        if (messageDAO == null) {
+            return Collections.emptyList();
+        }
+        return messageDAO.findPrivateConversation(user1, user2, limit);
     }
 
     private void handleIncomingPacket(ReadThread.Packet packet) {
@@ -127,10 +127,24 @@ public class ChatService {
         if (messageDAO == null) {
             return;
         }
-        String dbContent = ("PUBLIC".equals(type) || target == null || target.isBlank())
-                ? content
-                : "[" + type + ":" + target + "] " + content;
-        messageDAO.saveMessage(new Message(sender, dbContent, LocalDateTime.now()));
+
+        String normalizedType = type == null ? "" : type.trim().toUpperCase();
+        String room = null;
+        String receiver = null;
+        if ("PUBLIC".equals(normalizedType) || "ROOM".equals(normalizedType)) {
+            room = (target == null || target.isBlank()) ? "general" : target.trim();
+        } else if ("PRIVATE".equals(normalizedType)) {
+            receiver = target == null ? null : target.trim();
+        }
+
+        messageDAO.saveMessage(new Message(
+                sender,
+                normalizedType,
+                room,
+                receiver,
+                content,
+                LocalDateTime.now()
+        ));
     }
 
     public static class ChatEvent {
