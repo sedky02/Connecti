@@ -3,6 +3,7 @@ package ui.chat;
 import service.ChatService;
 import service.UserService;
 import ui.components.BaseFrame;
+import ui.feed.FeedPanel;
 import ui.users.UserListPanel;
 
 import javax.swing.border.EmptyBorder;
@@ -15,7 +16,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class ChatFrame extends BaseFrame {
     private final UserListPanel userListPanel = new UserListPanel();
-    private final JTabbedPane tabbedPane = new JTabbedPane();
+    private final JTabbedPane appTabbedPane = new JTabbedPane();
+    private final JTabbedPane chatTabbedPane = new JTabbedPane();
     private final Map<String, ChatPanel> chats = new ConcurrentHashMap<>();
     private final Map<String, String> tabTitles = new ConcurrentHashMap<>();
     private final Map<String, Integer> unreadCounts = new ConcurrentHashMap<>();
@@ -28,6 +30,7 @@ public class ChatFrame extends BaseFrame {
     private final ChatService chatService;
     private final UserService userService = new UserService();
     private final String username;
+    private final FeedPanel feedPanel;
     private List<String> allUsers = new ArrayList<>();
 
     public ChatFrame(String username, String host, int port) {
@@ -36,6 +39,7 @@ public class ChatFrame extends BaseFrame {
         this.host = host;
         this.port = port;
         this.chatService = new ChatService(username, host, port);
+        this.feedPanel = new FeedPanel(username);
         this.allUsers = userService.getAllUsernames();
         initUI();
         wireService();
@@ -52,19 +56,38 @@ public class ChatFrame extends BaseFrame {
         JPanel topPanel = buildTopToolbar();
         joinRoomButton.addActionListener(e -> joinRoom(roomField.getText()));
 
-        JPanel centerPanel = new JPanel(new BorderLayout());
-        centerPanel.setBorder(new EmptyBorder(10, 6, 10, 10));
-        centerPanel.add(tabbedPane, BorderLayout.CENTER);
+        JPanel chatPanel = new JPanel(new BorderLayout());
+        chatPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
+        chatPanel.setOpaque(false);
+
+        JPanel chatBodyPanel = new JPanel(new BorderLayout());
+        chatBodyPanel.setOpaque(false);
+        chatBodyPanel.setBorder(new EmptyBorder(10, 0, 0, 0));
 
         JPanel leftWrap = new JPanel(new BorderLayout());
-        leftWrap.setBorder(new EmptyBorder(10, 10, 10, 6));
+        leftWrap.setBorder(new EmptyBorder(0, 0, 0, 6));
         leftWrap.add(userListPanel, BorderLayout.CENTER);
+        leftWrap.setOpaque(false);
 
-        add(topPanel, BorderLayout.NORTH);
-        add(leftWrap, BorderLayout.WEST);
-        add(centerPanel, BorderLayout.CENTER);
+        JPanel chatCenter = new JPanel(new BorderLayout());
+        chatCenter.setOpaque(false);
+        chatCenter.add(chatTabbedPane, BorderLayout.CENTER);
 
-        tabbedPane.addChangeListener(e -> clearUnreadForSelectedTab());
+        chatBodyPanel.add(leftWrap, BorderLayout.WEST);
+        chatBodyPanel.add(chatCenter, BorderLayout.CENTER);
+        chatPanel.add(topPanel, BorderLayout.NORTH);
+        chatPanel.add(chatBodyPanel, BorderLayout.CENTER);
+
+        appTabbedPane.addTab("Chat", chatPanel);
+        appTabbedPane.addTab("Feed", feedPanel);
+        add(appTabbedPane, BorderLayout.CENTER);
+
+        chatTabbedPane.addChangeListener(e -> clearUnreadForSelectedTab());
+        appTabbedPane.addChangeListener(e -> {
+            boolean chatSelected = appTabbedPane.getSelectedIndex() == 0;
+            roomField.setEnabled(chatSelected);
+            joinRoomButton.setEnabled(chatSelected);
+        });
         getOrCreatePublicTab();
         applyLightTheme();
         applyFont(this);
@@ -72,6 +95,7 @@ public class ChatFrame extends BaseFrame {
         addWindowListener(new java.awt.event.WindowAdapter() {
             @Override
             public void windowClosing(java.awt.event.WindowEvent e) {
+                feedPanel.stopAutoRefresh();
                 chatService.disconnect();
             }
         });
@@ -116,7 +140,7 @@ public class ChatFrame extends BaseFrame {
 
     private ChatPanel addTab(String type, String title, String target) {
         ChatPanel panel = new ChatPanel(type, target, username, chatService::sendProtocolLine);
-        tabbedPane.addTab(title, panel);
+        chatTabbedPane.addTab(title, panel);
         String key = "PUBLIC".equals(type) ? "PUBLIC" : ("PRIVATE".equals(type) ? "PRIVATE_" + target : "ROOM_" + target);
         tabTitles.put(key, title);
         unreadCounts.put(key, 0);
@@ -126,7 +150,8 @@ public class ChatFrame extends BaseFrame {
     private void selectTab(String key) {
         ChatPanel panel = chats.get(key);
         if (panel != null) {
-            tabbedPane.setSelectedComponent(panel);
+            appTabbedPane.setSelectedIndex(0);
+            chatTabbedPane.setSelectedComponent(panel);
         }
     }
 
@@ -152,7 +177,7 @@ public class ChatFrame extends BaseFrame {
             ChatPanel panel = chats.get(key);
             if (panel != null) {
                 panel.appendMessage(event.getSender(), event.getContent());
-                if (tabbedPane.getSelectedComponent() != panel
+                if (chatTabbedPane.getSelectedComponent() != panel
                         && !username.equals(event.getSender())
                         && !"SYSTEM".equalsIgnoreCase(event.getSender())
                         && !"SERVER".equalsIgnoreCase(event.getSender())) {
@@ -224,7 +249,7 @@ public class ChatFrame extends BaseFrame {
     }
 
     private void clearUnreadForSelectedTab() {
-        Component selected = tabbedPane.getSelectedComponent();
+        Component selected = chatTabbedPane.getSelectedComponent();
         if (selected == null) {
             return;
         }
@@ -242,13 +267,13 @@ public class ChatFrame extends BaseFrame {
         if (panel == null) {
             return;
         }
-        int index = tabbedPane.indexOfComponent(panel);
+        int index = chatTabbedPane.indexOfComponent(panel);
         if (index < 0) {
             return;
         }
-        String base = tabTitles.getOrDefault(key, tabbedPane.getTitleAt(index));
+        String base = tabTitles.getOrDefault(key, chatTabbedPane.getTitleAt(index));
         int unread = unreadCounts.getOrDefault(key, 0);
-        tabbedPane.setTitleAt(index, unread > 0 ? base + " (" + unread + ")" : base);
+        chatTabbedPane.setTitleAt(index, unread > 0 ? base + " (" + unread + ")" : base);
     }
 
     private void applyLightTheme() {
@@ -258,9 +283,11 @@ public class ChatFrame extends BaseFrame {
         Color border = new Color(220, 224, 230);
 
         getContentPane().setBackground(frameBg);
-        tabbedPane.setBackground(panelBg);
-        tabbedPane.setForeground(text);
-        tabbedPane.setBorder(BorderFactory.createLineBorder(border));
+        appTabbedPane.setBackground(panelBg);
+        appTabbedPane.setForeground(text);
+        chatTabbedPane.setBackground(panelBg);
+        chatTabbedPane.setForeground(text);
+        chatTabbedPane.setBorder(BorderFactory.createLineBorder(border));
         roomField.setBackground(Color.WHITE);
         roomField.setForeground(text);
         roomField.setCaretColor(text);
