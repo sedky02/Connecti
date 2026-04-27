@@ -23,7 +23,6 @@ public class UserListPanel extends JPanel {
     private String currentUsername;
     private final Set<String> onlineUsers = new HashSet<>();
     private int hoverIndex = -1;
-    private boolean darkMode;
 
     public UserListPanel() {
         setLayout(new BorderLayout());
@@ -74,7 +73,7 @@ public class UserListPanel extends JPanel {
                 }
             }
         });
-        applyTheme(false);
+        applyTheme();
     }
 
     public void setCurrentUsername(String currentUsername) {
@@ -103,15 +102,10 @@ public class UserListPanel extends JPanel {
         }
     }
 
-    public void setDarkMode(boolean darkMode) {
-        this.darkMode = darkMode;
-        applyTheme(darkMode);
-    }
-
-    private void applyTheme(boolean dark) {
-        Color background = dark ? new Color(24, 27, 31) : new Color(248, 250, 253);
-        Color listBackground = dark ? new Color(31, 35, 40) : Color.WHITE;
-        Color text = dark ? new Color(235, 238, 243) : new Color(35, 41, 49);
+    private void applyTheme() {
+        Color background = new Color(248, 250, 253);
+        Color listBackground = Color.WHITE;
+        Color text = new Color(35, 41, 49);
         setBackground(background);
         for (Component component : getComponents()) {
             component.setBackground(background);
@@ -119,7 +113,7 @@ public class UserListPanel extends JPanel {
         }
         userList.setBackground(listBackground);
         userList.setForeground(text);
-        userList.setSelectionBackground(dark ? new Color(61, 82, 112) : new Color(221, 234, 252));
+        userList.setSelectionBackground(new Color(221, 234, 252));
         userList.setSelectionForeground(text);
     }
 
@@ -147,13 +141,13 @@ public class UserListPanel extends JPanel {
 
             Color bg;
             if (isSelected) {
-                bg = darkMode ? new Color(61, 82, 112) : new Color(221, 234, 252);
+                bg = new Color(221, 234, 252);
             } else if (hoverIndex == index) {
-                bg = darkMode ? new Color(44, 49, 56) : new Color(242, 246, 251);
+                bg = new Color(242, 246, 251);
             } else {
-                bg = darkMode ? new Color(31, 35, 40) : Color.WHITE;
+                bg = Color.WHITE;
             }
-            Color text = darkMode ? new Color(235, 238, 243) : new Color(35, 41, 49);
+            Color text = new Color(35, 41, 49);
 
             setBackground(bg);
             dotLabel.setForeground(online ? new Color(71, 180, 90) : new Color(160, 166, 176));

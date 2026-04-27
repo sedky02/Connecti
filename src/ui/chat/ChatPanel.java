@@ -13,7 +13,7 @@ import java.util.function.Consumer;
 
 public class ChatPanel extends JPanel {
     private final JTextPane chatPane = new JTextPane();
-    private final JTextArea inputArea = new JTextArea(2, 20);
+    private final JTextArea inputArea = new JTextArea(1, 20);
     private final JButton sendButton = new JButton("Send");
     private final JScrollPane chatScroll;
     private final JScrollPane inputScroll;
@@ -23,7 +23,6 @@ public class ChatPanel extends JPanel {
     private final String username;
     private final Consumer<String> sendAction;
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm");
-    private boolean darkMode;
 
     private final SimpleAttributeSet ownStyle = new SimpleAttributeSet();
     private final SimpleAttributeSet otherStyle = new SimpleAttributeSet();
@@ -38,7 +37,7 @@ public class ChatPanel extends JPanel {
         this.chatScroll = new JScrollPane(chatPane);
         this.inputScroll = new JScrollPane(inputArea);
         initUI();
-        applyStyles(false);
+        applyStyles();
     }
 
     private void initUI() {
@@ -55,17 +54,14 @@ public class ChatPanel extends JPanel {
         inputArea.setWrapStyleWord(true);
         inputArea.setBorder(new EmptyBorder(8, 8, 8, 8));
         inputScroll.setBorder(BorderFactory.createLineBorder(new Color(220, 224, 230)));
-        inputScroll.setPreferredSize(new Dimension(200, 72));
+        inputScroll.setPreferredSize(new Dimension(200, 40));
 
         JPanel bottom = new JPanel(new BorderLayout(10, 0));
         bottom.setBorder(new EmptyBorder(2, 0, 0, 0));
         bottom.add(inputScroll, BorderLayout.CENTER);
         sendButton.setPreferredSize(new Dimension(90, 40));
         sendButton.setFocusable(false);
-        JPanel sendWrap = new JPanel(new BorderLayout());
-        sendWrap.add(sendButton, BorderLayout.NORTH);
-        sendWrap.setOpaque(false);
-        bottom.add(sendWrap, BorderLayout.EAST);
+        bottom.add(sendButton, BorderLayout.EAST);
         add(bottom, BorderLayout.SOUTH);
 
         sendButton.addActionListener(e -> sendMessage());
@@ -132,38 +128,32 @@ public class ChatPanel extends JPanel {
         return otherStyle;
     }
 
-    public void setDarkMode(boolean darkMode) {
-        this.darkMode = darkMode;
-        applyStyles(darkMode);
-    }
-
-    private void applyStyles(boolean dark) {
-        Color background = dark ? new Color(28, 31, 36) : Color.WHITE;
-        Color text = dark ? new Color(236, 239, 244) : new Color(42, 47, 55);
-        Color subtle = dark ? new Color(140, 148, 158) : new Color(120, 129, 140);
-
+    private void applyStyles() {
+        Color background = Color.WHITE;
+        Color text = new Color(42, 47, 55);
+        Color subtle = new Color(120, 129, 140);
         setBackground(background);
         chatPane.setBackground(background);
         chatPane.setForeground(text);
         chatPane.setCaretColor(text);
-        inputArea.setBackground(dark ? new Color(35, 39, 45) : Color.WHITE);
+        inputArea.setBackground(Color.WHITE);
         inputArea.setForeground(text);
         inputArea.setCaretColor(text);
         chatScroll.setBackground(background);
         inputScroll.setBackground(background);
 
-        sendButton.setBackground(dark ? new Color(63, 114, 175) : new Color(56, 132, 255));
+        sendButton.setBackground(new Color(56, 132, 255));
         sendButton.setForeground(Color.WHITE);
         sendButton.setBorder(BorderFactory.createEmptyBorder(6, 12, 6, 12));
 
-        chatScroll.setBorder(BorderFactory.createLineBorder(dark ? new Color(62, 68, 76) : new Color(220, 224, 230)));
-        inputScroll.setBorder(BorderFactory.createLineBorder(dark ? new Color(62, 68, 76) : new Color(220, 224, 230)));
+        chatScroll.setBorder(BorderFactory.createLineBorder(new Color(220, 224, 230)));
+        inputScroll.setBorder(BorderFactory.createLineBorder(new Color(220, 224, 230)));
 
-        StyleConstants.setForeground(ownStyle, dark ? new Color(167, 218, 255) : new Color(10, 84, 170));
+        StyleConstants.setForeground(ownStyle, new Color(10, 84, 170));
         StyleConstants.setBold(ownStyle, true);
         StyleConstants.setForeground(otherStyle, text);
         StyleConstants.setBold(otherStyle, false);
-        StyleConstants.setForeground(systemStyle, dark ? new Color(244, 203, 117) : new Color(164, 104, 0));
+        StyleConstants.setForeground(systemStyle, new Color(164, 104, 0));
         StyleConstants.setItalic(systemStyle, true);
         StyleConstants.setForeground(timeStyle, subtle);
         StyleConstants.setItalic(timeStyle, true);

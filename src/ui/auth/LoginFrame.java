@@ -55,10 +55,6 @@ public class LoginFrame extends BaseFrame {
 
         JButton loginButton = new JButton("Login");
         JButton registerButton = new JButton("Register");
-        loginButton.setBackground(new Color(56, 132, 255));
-        loginButton.setForeground(Color.WHITE);
-        loginButton.setBorder(BorderFactory.createEmptyBorder(6, 12, 6, 12));
-        registerButton.setBorder(BorderFactory.createEmptyBorder(6, 12, 6, 12));
 
         loginButton.addActionListener(e -> handleLogin());
         registerButton.addActionListener(e -> handleRegister());

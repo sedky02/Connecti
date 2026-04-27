@@ -22,7 +22,6 @@ public class ChatFrame extends BaseFrame {
     private final JTextField roomField = new JTextField("general");
     private final JButton joinRoomButton = new JButton("Join Room");
     private final JLabel connectionLabel = new JLabel();
-    private final JToggleButton themeToggle = new JToggleButton("Dark");
     private final String host;
     private final int port;
 
@@ -30,7 +29,6 @@ public class ChatFrame extends BaseFrame {
     private final UserService userService = new UserService();
     private final String username;
     private List<String> allUsers = new ArrayList<>();
-    private boolean darkMode;
 
     public ChatFrame(String username, String host, int port) {
         super("Messaging App - " + username, 1000, 650);
@@ -68,7 +66,7 @@ public class ChatFrame extends BaseFrame {
 
         tabbedPane.addChangeListener(e -> clearUnreadForSelectedTab());
         getOrCreatePublicTab();
-        applyTheme(false);
+        applyLightTheme();
         applyFont(this);
 
         addWindowListener(new java.awt.event.WindowAdapter() {
@@ -99,9 +97,12 @@ public class ChatFrame extends BaseFrame {
             return;
         }
         String key = "PRIVATE_" + otherUser;
+        boolean existed = chats.containsKey(key);
         chats.computeIfAbsent(key, k -> addTab("PRIVATE", "PM: " + otherUser, otherUser));
         selectTab(key);
-        chatService.sendProtocolLine("PRIVATE|" + username + "|" + otherUser + "|/history");
+        if (!existed) {
+            chatService.sendProtocolLine("PRIVATE|" + username + "|" + otherUser + "|/history");
+        }
     }
 
     private void joinRoom(String roomName) {
@@ -115,7 +116,6 @@ public class ChatFrame extends BaseFrame {
 
     private ChatPanel addTab(String type, String title, String target) {
         ChatPanel panel = new ChatPanel(type, target, username, chatService::sendProtocolLine);
-        panel.setDarkMode(darkMode);
         tabbedPane.addTab(title, panel);
         String key = "PUBLIC".equals(type) ? "PUBLIC" : ("PRIVATE".equals(type) ? "PRIVATE_" + target : "ROOM_" + target);
         tabTitles.put(key, title);
@@ -208,10 +208,7 @@ public class ChatFrame extends BaseFrame {
 
         JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
         connectionLabel.setHorizontalAlignment(SwingConstants.RIGHT);
-        themeToggle.setFocusable(false);
-        themeToggle.addActionListener(e -> applyTheme(themeToggle.isSelected()));
         right.add(connectionLabel);
-        right.add(themeToggle);
 
         left.setOpaque(false);
         right.setOpaque(false);
@@ -254,18 +251,17 @@ public class ChatFrame extends BaseFrame {
         tabbedPane.setTitleAt(index, unread > 0 ? base + " (" + unread + ")" : base);
     }
 
-    private void applyTheme(boolean dark) {
-        this.darkMode = dark;
-        Color frameBg = dark ? new Color(20, 22, 26) : new Color(245, 247, 250);
-        Color panelBg = dark ? new Color(28, 31, 36) : Color.WHITE;
-        Color text = dark ? new Color(234, 237, 242) : new Color(33, 39, 47);
-        Color border = dark ? new Color(58, 63, 70) : new Color(220, 224, 230);
+    private void applyLightTheme() {
+        Color frameBg = new Color(245, 247, 250);
+        Color panelBg = Color.WHITE;
+        Color text = new Color(33, 39, 47);
+        Color border = new Color(220, 224, 230);
 
         getContentPane().setBackground(frameBg);
         tabbedPane.setBackground(panelBg);
         tabbedPane.setForeground(text);
         tabbedPane.setBorder(BorderFactory.createLineBorder(border));
-        roomField.setBackground(dark ? new Color(35, 39, 45) : Color.WHITE);
+        roomField.setBackground(Color.WHITE);
         roomField.setForeground(text);
         roomField.setCaretColor(text);
         roomField.setBorder(BorderFactory.createCompoundBorder(
@@ -273,18 +269,10 @@ public class ChatFrame extends BaseFrame {
                 new EmptyBorder(6, 8, 6, 8)
         ));
 
-        joinRoomButton.setBackground(dark ? new Color(63, 114, 175) : new Color(56, 132, 255));
+        joinRoomButton.setBackground(new Color(56, 132, 255));
         joinRoomButton.setForeground(Color.WHITE);
         joinRoomButton.setBorder(BorderFactory.createEmptyBorder(6, 12, 6, 12));
         connectionLabel.setForeground(text);
-        themeToggle.setBackground(dark ? new Color(48, 54, 61) : new Color(234, 238, 244));
-        themeToggle.setForeground(text);
-        themeToggle.setBorder(BorderFactory.createEmptyBorder(6, 10, 6, 10));
-
-        userListPanel.setDarkMode(dark);
-        for (ChatPanel panel : chats.values()) {
-            panel.setDarkMode(dark);
-        }
         repaint();
     }
 }
