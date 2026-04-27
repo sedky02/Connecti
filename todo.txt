@@ -1,0 +1,7 @@
+HELLOO MR HAMMA
+heres what we gonna do:
+- make private chats with tabs
+- add create group and chat in it
+GOAL: make it feel like messenger app
+- make the ui better
+- add a profile edit frame
