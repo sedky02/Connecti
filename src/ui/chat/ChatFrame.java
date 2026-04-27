@@ -5,6 +5,7 @@ import service.UserService;
 import ui.components.BaseFrame;
 import ui.users.UserListPanel;
 
+import javax.swing.border.EmptyBorder;
 import javax.swing.*;
 import java.awt.*;
 import java.util.ArrayList;
@@ -16,17 +17,26 @@ public class ChatFrame extends BaseFrame {
     private final UserListPanel userListPanel = new UserListPanel();
     private final JTabbedPane tabbedPane = new JTabbedPane();
     private final Map<String, ChatPanel> chats = new ConcurrentHashMap<>();
+    private final Map<String, String> tabTitles = new ConcurrentHashMap<>();
+    private final Map<String, Integer> unreadCounts = new ConcurrentHashMap<>();
     private final JTextField roomField = new JTextField("general");
     private final JButton joinRoomButton = new JButton("Join Room");
+    private final JLabel connectionLabel = new JLabel();
+    private final JToggleButton themeToggle = new JToggleButton("Dark");
+    private final String host;
+    private final int port;
 
     private final ChatService chatService;
     private final UserService userService = new UserService();
     private final String username;
     private List<String> allUsers = new ArrayList<>();
+    private boolean darkMode;
 
     public ChatFrame(String username, String host, int port) {
         super("Messaging App - " + username, 1000, 650);
         this.username = username;
+        this.host = host;
+        this.port = port;
         this.chatService = new ChatService(username, host, port);
         this.allUsers = userService.getAllUsernames();
         initUI();
@@ -35,22 +45,31 @@ public class ChatFrame extends BaseFrame {
     }
 
     private void initUI() {
-        setLayout(new BorderLayout(8, 8));
+        setLayout(new BorderLayout(0, 0));
 
         userListPanel.setCurrentUsername(username);
         userListPanel.setUserClickListener(this::openPrivateTab);
+        userListPanel.setPreferredSize(new Dimension(240, 0));
 
-        JPanel topPanel = new JPanel(new BorderLayout(6, 0));
-        topPanel.add(new JLabel("Room:"), BorderLayout.WEST);
-        topPanel.add(roomField, BorderLayout.CENTER);
-        topPanel.add(joinRoomButton, BorderLayout.EAST);
+        JPanel topPanel = buildTopToolbar();
         joinRoomButton.addActionListener(e -> joinRoom(roomField.getText()));
 
-        add(topPanel, BorderLayout.NORTH);
-        add(tabbedPane, BorderLayout.CENTER);
-        add(userListPanel, BorderLayout.EAST);
+        JPanel centerPanel = new JPanel(new BorderLayout());
+        centerPanel.setBorder(new EmptyBorder(10, 6, 10, 10));
+        centerPanel.add(tabbedPane, BorderLayout.CENTER);
 
+        JPanel leftWrap = new JPanel(new BorderLayout());
+        leftWrap.setBorder(new EmptyBorder(10, 10, 10, 6));
+        leftWrap.add(userListPanel, BorderLayout.CENTER);
+
+        add(topPanel, BorderLayout.NORTH);
+        add(leftWrap, BorderLayout.WEST);
+        add(centerPanel, BorderLayout.CENTER);
+
+        tabbedPane.addChangeListener(e -> clearUnreadForSelectedTab());
         getOrCreatePublicTab();
+        applyTheme(false);
+        applyFont(this);
 
         addWindowListener(new java.awt.event.WindowAdapter() {
             @Override
@@ -68,6 +87,7 @@ public class ChatFrame extends BaseFrame {
 
     private void connect() {
         chatService.connect();
+        connectionLabel.setText("Connected: " + username + " @ " + host + ":" + port);
     }
 
     private ChatPanel getOrCreatePublicTab() {
@@ -85,7 +105,7 @@ public class ChatFrame extends BaseFrame {
     }
 
     private void joinRoom(String roomName) {
-        final String room = (roomName == null || roomName.isBlank()) ? "general" : roomName;
+        final String room = sanitize(roomName).isBlank() ? "general" : sanitize(roomName);
 
         String key = "ROOM_" + room;
         chats.computeIfAbsent(key, k -> addTab("ROOM", "Room: " + room, room));
@@ -95,7 +115,11 @@ public class ChatFrame extends BaseFrame {
 
     private ChatPanel addTab(String type, String title, String target) {
         ChatPanel panel = new ChatPanel(type, target, username, chatService::sendProtocolLine);
+        panel.setDarkMode(darkMode);
         tabbedPane.addTab(title, panel);
+        String key = "PUBLIC".equals(type) ? "PUBLIC" : ("PRIVATE".equals(type) ? "PRIVATE_" + target : "ROOM_" + target);
+        tabTitles.put(key, title);
+        unreadCounts.put(key, 0);
         return panel;
     }
 
@@ -128,6 +152,12 @@ public class ChatFrame extends BaseFrame {
             ChatPanel panel = chats.get(key);
             if (panel != null) {
                 panel.appendMessage(event.getSender(), event.getContent());
+                if (tabbedPane.getSelectedComponent() != panel
+                        && !username.equals(event.getSender())
+                        && !"SYSTEM".equalsIgnoreCase(event.getSender())
+                        && !"SERVER".equalsIgnoreCase(event.getSender())) {
+                    incrementUnread(key);
+                }
             }
         });
     }
@@ -162,5 +192,99 @@ public class ChatFrame extends BaseFrame {
             return "";
         }
         return value.trim().replace("|", "/");
+    }
+
+    private JPanel buildTopToolbar() {
+        JPanel topPanel = new JPanel(new BorderLayout(10, 0));
+        topPanel.setBorder(new EmptyBorder(10, 12, 10, 12));
+
+        JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+        JLabel roomLabel = new JLabel("Room");
+        roomField.setPreferredSize(new Dimension(180, 32));
+        joinRoomButton.setPreferredSize(new Dimension(100, 32));
+        left.add(roomLabel);
+        left.add(roomField);
+        left.add(joinRoomButton);
+
+        JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+        connectionLabel.setHorizontalAlignment(SwingConstants.RIGHT);
+        themeToggle.setFocusable(false);
+        themeToggle.addActionListener(e -> applyTheme(themeToggle.isSelected()));
+        right.add(connectionLabel);
+        right.add(themeToggle);
+
+        left.setOpaque(false);
+        right.setOpaque(false);
+        topPanel.add(left, BorderLayout.WEST);
+        topPanel.add(right, BorderLayout.EAST);
+        return topPanel;
+    }
+
+    private void incrementUnread(String key) {
+        int next = unreadCounts.getOrDefault(key, 0) + 1;
+        unreadCounts.put(key, next);
+        refreshTabTitle(key);
+    }
+
+    private void clearUnreadForSelectedTab() {
+        Component selected = tabbedPane.getSelectedComponent();
+        if (selected == null) {
+            return;
+        }
+        for (Map.Entry<String, ChatPanel> entry : chats.entrySet()) {
+            if (entry.getValue() == selected) {
+                unreadCounts.put(entry.getKey(), 0);
+                refreshTabTitle(entry.getKey());
+                break;
+            }
+        }
+    }
+
+    private void refreshTabTitle(String key) {
+        ChatPanel panel = chats.get(key);
+        if (panel == null) {
+            return;
+        }
+        int index = tabbedPane.indexOfComponent(panel);
+        if (index < 0) {
+            return;
+        }
+        String base = tabTitles.getOrDefault(key, tabbedPane.getTitleAt(index));
+        int unread = unreadCounts.getOrDefault(key, 0);
+        tabbedPane.setTitleAt(index, unread > 0 ? base + " (" + unread + ")" : base);
+    }
+
+    private void applyTheme(boolean dark) {
+        this.darkMode = dark;
+        Color frameBg = dark ? new Color(20, 22, 26) : new Color(245, 247, 250);
+        Color panelBg = dark ? new Color(28, 31, 36) : Color.WHITE;
+        Color text = dark ? new Color(234, 237, 242) : new Color(33, 39, 47);
+        Color border = dark ? new Color(58, 63, 70) : new Color(220, 224, 230);
+
+        getContentPane().setBackground(frameBg);
+        tabbedPane.setBackground(panelBg);
+        tabbedPane.setForeground(text);
+        tabbedPane.setBorder(BorderFactory.createLineBorder(border));
+        roomField.setBackground(dark ? new Color(35, 39, 45) : Color.WHITE);
+        roomField.setForeground(text);
+        roomField.setCaretColor(text);
+        roomField.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(border),
+                new EmptyBorder(6, 8, 6, 8)
+        ));
+
+        joinRoomButton.setBackground(dark ? new Color(63, 114, 175) : new Color(56, 132, 255));
+        joinRoomButton.setForeground(Color.WHITE);
+        joinRoomButton.setBorder(BorderFactory.createEmptyBorder(6, 12, 6, 12));
+        connectionLabel.setForeground(text);
+        themeToggle.setBackground(dark ? new Color(48, 54, 61) : new Color(234, 238, 244));
+        themeToggle.setForeground(text);
+        themeToggle.setBorder(BorderFactory.createEmptyBorder(6, 10, 6, 10));
+
+        userListPanel.setDarkMode(dark);
+        for (ChatPanel panel : chats.values()) {
+            panel.setDarkMode(dark);
+        }
+        repaint();
     }
 }

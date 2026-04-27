@@ -5,6 +5,7 @@ import ui.chat.ChatFrame;
 import ui.components.BaseFrame;
 
 import javax.swing.*;
+import javax.swing.border.EmptyBorder;
 import java.awt.*;
 
 public class LoginFrame extends BaseFrame {
@@ -17,14 +18,15 @@ public class LoginFrame extends BaseFrame {
     private final AuthService authService = new AuthService();
 
     public LoginFrame() {
-        super("Messaging App - Login", 420, 300);
+        super("Messaging App - Login", 440, 320);
         initUI();
     }
 
     private void initUI() {
         JPanel panel = new JPanel(new GridBagLayout());
+        panel.setBorder(new EmptyBorder(14, 14, 14, 14));
         GridBagConstraints c = new GridBagConstraints();
-        c.insets = new Insets(6, 6, 6, 6);
+        c.insets = new Insets(8, 8, 8, 8);
         c.fill = GridBagConstraints.HORIZONTAL;
 
         c.gridx = 0;
@@ -53,6 +55,10 @@ public class LoginFrame extends BaseFrame {
 
         JButton loginButton = new JButton("Login");
         JButton registerButton = new JButton("Register");
+        loginButton.setBackground(new Color(56, 132, 255));
+        loginButton.setForeground(Color.WHITE);
+        loginButton.setBorder(BorderFactory.createEmptyBorder(6, 12, 6, 12));
+        registerButton.setBorder(BorderFactory.createEmptyBorder(6, 12, 6, 12));
 
         loginButton.addActionListener(e -> handleLogin());
         registerButton.addActionListener(e -> handleRegister());
@@ -70,7 +76,10 @@ public class LoginFrame extends BaseFrame {
         statusLabel.setForeground(Color.DARK_GRAY);
         panel.add(statusLabel, c);
 
+        panel.setBackground(new Color(248, 250, 253));
+        getContentPane().setBackground(new Color(245, 247, 250));
         add(panel);
+        applyFont(this);
     }
 
     private void handleLogin() {
